@@ -37,7 +37,7 @@ export default function SplashScreen() {
 
     // Start animations
     globeOpacity.value = withTiming(1, { duration: 800 });
-    globeScale.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.back) });
+    globeScale.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) });
 
     titleOpacity.value = withDelay(400, withTiming(1, { duration: 600 }));
     titleTranslateY.value = withDelay(400, withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) }));

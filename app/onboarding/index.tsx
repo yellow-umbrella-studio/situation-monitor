@@ -19,6 +19,7 @@ import Animated, {
   FadeIn,
   FadeInUp,
   FadeOut,
+  SharedValue,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { GlobeAnimation, TopicChip, StatusIndicator } from '../../src/components';
@@ -175,7 +176,7 @@ function ProgressDot({
   currentIndex,
 }: {
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   currentIndex: number;
 }) {
   const isActive = index === currentIndex;
