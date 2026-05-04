@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TopicId, topics } from '../constants/topics';
+import { TopicId, topics as allTopics } from '../constants/topics';
+
+const validTopicIds = new Set(allTopics.map((t) => t.id));
 
 interface AppState {
   hasOnboarded: boolean;
@@ -52,9 +54,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
       ]);
 
+      const parsedTopics: TopicId[] = topics ? JSON.parse(topics) : [];
+      const validatedTopics = parsedTopics.filter((id) => validTopicIds.has(id));
+
+      // If all stored topics were invalid (old IDs), reset onboarding
+      const shouldResetOnboarding = onboarded === 'true' && parsedTopics.length > 0 && validatedTopics.length === 0;
+
       setState({
-        hasOnboarded: onboarded === 'true',
-        selectedTopics: topics ? JSON.parse(topics) : [],
+        hasOnboarded: shouldResetOnboarding ? false : onboarded === 'true',
+        selectedTopics: validatedTopics,
         notificationsEnabled: notifications !== 'false',
         darkMode: darkMode !== 'false',
         isLoading: false,
@@ -76,7 +84,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleTopic = async (topicId: TopicId) => {
-    const newTopics = state.selectedTopics.includes(topicId)
+    const removing = state.selectedTopics.includes(topicId);
+    if (!removing && state.selectedTopics.length >= 3) return;
+    const newTopics = removing
       ? state.selectedTopics.filter((t) => t !== topicId)
       : [...state.selectedTopics, topicId];
     await setSelectedTopics(newTopics);

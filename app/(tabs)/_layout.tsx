@@ -40,9 +40,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="alerts"
         options={{
-          title: 'Alerts',
+          title: 'Feed',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="bell" color={color} focused={focused} badge={3} />
+            <TabIcon name="list" color={color} focused={focused} />
           ),
         }}
       />

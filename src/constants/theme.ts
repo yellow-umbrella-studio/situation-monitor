@@ -32,14 +32,14 @@ export const colors = {
   gradientEnd: '#14141A',
   
   // Topic colors
-  topicNews: '#FF6B6B',
-  topicMarkets: '#4ECDC4',
-  topicTech: '#9B59B6',
-  topicSports: '#F39C12',
-  topicEntertainment: '#E91E63',
-  topicMemes: '#00BCD4',
-  topicWeather: '#3498DB',
-  topicScience: '#8E44AD',
+  topicWar: '#FF4D4D',
+  topicSecurity: '#FF8C42',
+  topicAI: '#A78BFA',
+  topicFinance: '#4ADE80',
+  topicPolitics: '#60A5FA',
+  topicMilitary: '#6B7280',
+  topicClimate: '#38BDF8',
+  topicScience: '#E879F9',
 };
 
 export const spacing = {

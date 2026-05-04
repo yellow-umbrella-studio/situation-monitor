@@ -1,4 +1,4 @@
-import { SituationStatus } from '../data/mockData';
+export type SituationStatus = 'normal' | 'elevated' | 'critical';
 import { colors } from '../constants/theme';
 
 export const formatTimeAgo = (date: Date): string => {

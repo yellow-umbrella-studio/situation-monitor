@@ -148,13 +148,7 @@ export default function TopicDetailScreen() {
             </View>
           </View>
           <Text style={styles.aiText}>
-            {topic.id === 'markets'
-              ? 'Markets showing strong momentum today with Bitcoin leading gains. Fed rate cut expectations driving bullish sentiment across asset classes.'
-              : topic.id === 'tech'
-              ? 'Major developments in AI sector with new model announcements. Cloud infrastructure seeing elevated activity with some service disruptions.'
-              : topic.id === 'world-news'
-              ? 'Diplomatic activity intensifying with G7 summit outcomes. Multiple geopolitical situations being monitored with moderate alert levels.'
-              : `${topic.name} sector showing mixed signals. Multiple active situations being tracked with varying priority levels.`}
+            {`${topic.name} sector showing mixed signals. Multiple active situations being tracked with varying priority levels.`}
           </Text>
         </Animated.View>
 

@@ -1,456 +1,387 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Switch,
+  RefreshControl,
+  Pressable,
+  Modal,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useAppContext } from '../../src/context/AppContext';
-import { mockSituations, Situation } from '../../src/data/mockData';
-import { getTopicById } from '../../src/constants/topics';
-import { StatusIndicator } from '../../src/components';
-import { formatTimeAgo, getStatusColor } from '../../src/utils/helpers';
-import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
+import { getTopicById, topics, TopicId } from '../../src/constants/topics';
+import { useNews } from '../../src/hooks/useNews';
+import { NewsItem } from '../../src/services/newsService';
+import { formatTimeAgo } from '../../src/utils/helpers';
 
-// Mock alerts data
-const mockAlerts = mockSituations
-  .filter((s) => s.isBreaking || s.status === 'critical')
-  .map((s, i) => ({
-    ...s,
-    read: i > 2,
-    alertId: `alert-${s.id}`,
-  }))
-  .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-export default function AlertsScreen() {
+export default function FeedScreen() {
   const insets = useSafeAreaInsets();
-  const { selectedTopics, notificationsEnabled, setNotificationsEnabled } = useAppContext();
-  const [alerts, setAlerts] = useState(mockAlerts);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const { selectedTopics } = useAppContext();
+  const { latest, isLoading, refresh } = useNews(selectedTopics);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<TopicId | 'all'>('all');
+  const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
 
-  const filteredAlerts = alerts.filter((alert) => {
-    const topicMatch = selectedTopics.includes(alert.topicId);
-    const readMatch = filter === 'all' || !alert.read;
-    return topicMatch && readMatch;
-  });
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
 
-  const unreadCount = alerts.filter(
-    (a) => !a.read && selectedTopics.includes(a.topicId)
-  ).length;
-
-  const markAsRead = (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.alertId === alertId ? { ...a, read: true } : a))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
-  };
+  const filtered = activeFilter === 'all'
+    ? latest
+    : latest.filter((item) => item.topicId === activeFilter);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
-      <Animated.View style={styles.header} entering={FadeIn}>
-        <View>
-          <Text style={styles.title}>Alerts</Text>
-          <Text style={styles.subtitle}>
-            {unreadCount} unread alert{unreadCount !== 1 ? 's' : ''}
-          </Text>
-        </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
-            <Feather name="check-circle" size={16} color={colors.primary} />
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
-      </Animated.View>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Feed</Text>
+        <Text style={styles.headerCount}>{filtered.length} stories</Text>
+      </View>
 
-      {/* Notification toggle */}
-      <Animated.View style={styles.notificationToggle} entering={FadeInDown.delay(100)}>
-        <View style={styles.toggleContent}>
-          <View style={styles.toggleIcon}>
-            <Feather
-              name={notificationsEnabled ? 'bell' : 'bell-off'}
-              size={20}
-              color={notificationsEnabled ? colors.primary : colors.textMuted}
-            />
-          </View>
-          <View style={styles.toggleTextContainer}>
-            <Text style={styles.toggleTitle}>Push Notifications</Text>
-            <Text style={styles.toggleDescription}>
-              {notificationsEnabled
-                ? 'You will receive breaking alerts'
-                : 'Notifications are disabled'}
-            </Text>
-          </View>
-        </View>
-        <Switch
-          value={notificationsEnabled}
-          onValueChange={setNotificationsEnabled}
-          trackColor={{ false: colors.cardBorder, true: colors.primaryGlow }}
-          thumbColor={notificationsEnabled ? colors.primary : colors.textMuted}
-        />
-      </Animated.View>
-
-      {/* Filter tabs */}
-      <Animated.View style={styles.filterTabs} entering={FadeInDown.delay(150)}>
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
-          onPress={() => setFilter('all')}
+      {/* Filter chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtersRow}
+      >
+        <Pressable
+          onPress={() => setActiveFilter('all')}
+          style={[styles.filterChip, activeFilter === 'all' && styles.filterChipActive]}
         >
-          <Text
-            style={[
-              styles.filterTabText,
-              filter === 'all' && styles.filterTabTextActive,
-            ]}
-          >
+          <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>
             All
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'unread' && styles.filterTabActive]}
-          onPress={() => setFilter('unread')}
-        >
-          <Text
-            style={[
-              styles.filterTabText,
-              filter === 'unread' && styles.filterTabTextActive,
-            ]}
-          >
-            Unread
-          </Text>
-          {unreadCount > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+        </Pressable>
+        {selectedTopics.map((topicId) => {
+          const topic = getTopicById(topicId);
+          const isActive = activeFilter === topicId;
+          return (
+            <Pressable
+              key={topicId}
+              onPress={() => setActiveFilter(topicId)}
+              style={[styles.filterChip, isActive && styles.filterChipActive]}
+            >
+              <Feather
+                name={topic?.icon as any || 'circle'}
+                size={12}
+                color={isActive ? '#000' : '#777'}
+              />
+              <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                {topic?.shortName}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
-      {/* Alerts list */}
+      {/* News list */}
       <ScrollView
-        style={styles.alertsList}
-        contentContainerStyle={styles.alertsContent}
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#333" />
+        }
       >
-        {filteredAlerts.length === 0 ? (
-          <Animated.View style={styles.emptyState} entering={FadeIn.delay(200)}>
-            <View style={styles.emptyIcon}>
-              <Feather name="bell-off" size={48} color={colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>No alerts</Text>
-            <Text style={styles.emptyDescription}>
-              {filter === 'unread'
-                ? "You've read all your alerts"
-                : "No alerts for your monitored topics yet"}
-            </Text>
+        {filtered.slice(0, 50).map((item, index) => (
+          <Animated.View key={item.id} entering={FadeInUp.delay(index * 20).duration(300)}>
+            <Pressable style={styles.newsItem} onPress={() => setSelectedItem(item)}>
+              <View style={styles.newsItemContent}>
+                <View style={styles.newsItemTopRow}>
+                  <Feather
+                    name={getTopicById(item.topicId)?.icon as any || 'circle'}
+                    size={12}
+                    color={getTopicById(item.topicId)?.color || '#666'}
+                  />
+                  <Text style={[styles.newsItemTopic, { color: getTopicById(item.topicId)?.color }]}>
+                    {getTopicById(item.topicId)?.shortName}
+                  </Text>
+                  <Text style={styles.newsItemTime}>{formatTimeAgo(item.publishedAt)}</Text>
+                </View>
+                <Text style={styles.newsItemTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Text style={styles.newsItemSource}>{item.source}</Text>
+              </View>
+            </Pressable>
           </Animated.View>
-        ) : (
-          filteredAlerts.map((alert, index) => (
-            <AlertItem
-              key={alert.alertId}
-              alert={alert}
-              index={index}
-              onPress={() => markAsRead(alert.alertId)}
-            />
-          ))
+        ))}
+
+        {!isLoading && filtered.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No stories</Text>
+          </View>
         )}
+
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Article Modal */}
+      <ArticleModal item={selectedItem} onClose={() => setSelectedItem(null)} />
     </View>
   );
 }
 
-function AlertItem({
-  alert,
-  index,
-  onPress,
-}: {
-  alert: any;
-  index: number;
-  onPress: () => void;
-}) {
-  const topic = getTopicById(alert.topicId);
-  const statusColor = getStatusColor(alert.status);
+function ArticleModal({ item, onClose }: { item: NewsItem | null; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  if (!item) return null;
+
+  const topic = getTopicById(item.topicId);
+
+  const handleReadMore = () => {
+    if (!item.url) return;
+    WebBrowser.openBrowserAsync(item.url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+      toolbarColor: '#050508',
+      controlsColor: '#fff',
+    });
+  };
+
+  const handleShare = () => {
+    Share.share({ message: `${item.title}\n\n${item.url}` });
+  };
 
   return (
-    <Animated.View entering={SlideInRight.delay(index * 50).springify()}>
-      <TouchableOpacity
-        style={[
-          styles.alertItem,
-          !alert.read && styles.alertItemUnread,
-        ]}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        {/* Unread indicator */}
-        {!alert.read && <View style={[styles.unreadDot, { backgroundColor: statusColor }]} />}
+    <Modal visible={!!item} transparent animationType="none" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Animated.View
+          entering={SlideInDown.springify().damping(20)}
+          exiting={SlideOutDown.duration(200)}
+          style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
+        >
+          <Pressable onPress={() => {}}>
+            <View style={styles.modalHandle} />
 
-        {/* Icon */}
-        <View style={[styles.alertIcon, { backgroundColor: topic?.color + '20' }]}>
-          <Feather
-            name={topic?.icon as any || 'alert-circle'}
-            size={18}
-            color={topic?.color}
-          />
-        </View>
-
-        {/* Content */}
-        <View style={styles.alertContent}>
-          <View style={styles.alertHeader}>
-            <View style={styles.alertMeta}>
-              <Text style={[styles.alertTopic, { color: topic?.color }]}>
-                {topic?.shortName}
-              </Text>
-              <Text style={styles.alertDot}>•</Text>
-              <StatusIndicator status={alert.status} size="small" />
+            <View style={styles.modalTopRow}>
+              <View style={styles.modalTopicRow}>
+                <Feather name={topic?.icon as any || 'circle'} size={14} color={topic?.color} />
+                <Text style={[styles.modalTopicName, { color: topic?.color }]}>{topic?.name}</Text>
+              </View>
+              <Text style={styles.modalTime}>{formatTimeAgo(item.publishedAt)}</Text>
             </View>
-            <Text style={styles.alertTime}>
-              {formatTimeAgo(alert.timestamp)}
-            </Text>
-          </View>
-          <Text
-            style={[styles.alertHeadline, !alert.read && styles.alertHeadlineUnread]}
-            numberOfLines={2}
-          >
-            {alert.headline}
-          </Text>
-          <Text style={styles.alertSource}>{alert.source}</Text>
-        </View>
 
-        {/* Action */}
-        <View style={styles.alertAction}>
-          <Feather name="chevron-right" size={16} color={colors.textMuted} />
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
+            <Text style={styles.modalTitle}>{item.title}</Text>
+            {item.description ? <Text style={styles.modalDesc}>{item.description}</Text> : null}
+            <Text style={styles.modalSource}>{item.source}</Text>
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalActionPrimary} onPress={handleReadMore}>
+                <Text style={styles.modalActionPrimaryText}>Read full article</Text>
+                <Feather name="external-link" size={14} color="#000" />
+              </Pressable>
+              <Pressable style={styles.modalActionSecondary} onPress={handleShare}>
+                <Feather name="share" size={16} color="#888" />
+              </Pressable>
+              <Pressable style={styles.modalActionSecondary} onPress={onClose}>
+                <Feather name="x" size={16} color="#888" />
+              </Pressable>
+            </View>
+          </Pressable>
+        </Animated.View>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#050508',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    alignItems: 'baseline',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  title: {
-    ...typography.h2,
-    color: colors.text,
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -1,
   },
-  subtitle: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  markAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.primaryGlow,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-  },
-  markAllText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  notificationToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  toggleContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  toggleIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.backgroundSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  toggleTextContainer: {
-    flex: 1,
-  },
-  toggleTitle: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  toggleDescription: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  filterTabs: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: 4,
-  },
-  filterTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
-    gap: 6,
-  },
-  filterTabActive: {
-    backgroundColor: colors.backgroundSecondary,
-  },
-  filterTabText: {
-    ...typography.body,
-    color: colors.textMuted,
+  headerCount: {
+    fontSize: 13,
     fontWeight: '500',
+    color: '#333',
   },
-  filterTabTextActive: {
-    color: colors.text,
+
+  // Filters
+  filtersRow: {
+    paddingHorizontal: 24,
+    gap: 8,
+    paddingBottom: 16,
   },
-  filterBadge: {
-    backgroundColor: colors.alert,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    ...typography.caption,
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  alertsList: {
-    flex: 1,
-  },
-  alertsContent: {
-    paddingHorizontal: spacing.lg,
-  },
-  alertItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  alertItemUnread: {
-    backgroundColor: colors.backgroundSecondary,
-    borderColor: colors.primary + '30',
-  },
-  unreadDot: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.sm,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  alertIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  alertMeta: {
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 50,
+    backgroundColor: '#111118',
   },
-  alertTopic: {
-    ...typography.caption,
+  filterChipActive: {
+    backgroundColor: '#fff',
+  },
+  filterChipText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: '#777',
   },
-  alertDot: {
-    color: colors.textMuted,
-    fontSize: 8,
+  filterChipTextActive: {
+    color: '#000',
   },
-  alertTime: {
-    ...typography.caption,
-    color: colors.textMuted,
+
+  // Scroll
+  scroll: {
+    flex: 1,
   },
-  alertHeadline: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 4,
+
+  // News item
+  newsItem: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
   },
-  alertHeadlineUnread: {
-    color: colors.text,
-    fontWeight: '500',
+  newsItemContent: {
+    flex: 1,
   },
-  alertSource: {
-    ...typography.caption,
-    color: colors.textMuted,
+  newsItemTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
+  },
+  newsItemTopic: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  newsItemTime: {
     fontSize: 11,
+    fontWeight: '500',
+    color: '#333',
   },
-  alertAction: {
-    marginLeft: spacing.sm,
+  newsItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#B0B0BE',
+    lineHeight: 21,
+    marginBottom: 4,
   },
+  newsItemSource: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+  },
+
+  // Empty
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xxxl * 2,
+    paddingVertical: 40,
   },
-  emptyIcon: {
-    width: 100,
-    height: 100,
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#333',
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#111118',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    maxHeight: '80%',
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#2A2A38',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  modalTopicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalTopicName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalTime: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#444',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    lineHeight: 27,
+    marginBottom: 12,
+  },
+  modalDesc: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#888',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  modalSource: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#444',
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modalActionPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    paddingVertical: 14,
     borderRadius: 50,
-    backgroundColor: colors.card,
+  },
+  modalActionPrimaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+  },
+  modalActionSecondary: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#1A1A24',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  emptyDescription: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: 'center',
   },
 });

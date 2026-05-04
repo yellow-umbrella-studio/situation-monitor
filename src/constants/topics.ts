@@ -1,13 +1,13 @@
 import { colors } from './theme';
 
-export type TopicId = 
-  | 'world-news'
-  | 'markets'
-  | 'tech'
-  | 'sports'
-  | 'entertainment'
-  | 'memes'
-  | 'weather'
+export type TopicId =
+  | 'war-conflicts'
+  | 'security'
+  | 'ai-tech'
+  | 'finance'
+  | 'politics'
+  | 'military'
+  | 'climate'
   | 'science';
 
 export interface Topic {
@@ -17,72 +17,81 @@ export interface Topic {
   icon: string;
   color: string;
   description: string;
+  googleNewsQuery: string; // Google News RSS search query
 }
 
 export const topics: Topic[] = [
   {
-    id: 'world-news',
-    name: 'World News',
-    shortName: 'News',
-    icon: 'globe',
-    color: colors.topicNews,
-    description: 'Breaking stories & geopolitical events',
+    id: 'war-conflicts',
+    name: 'War & Conflicts',
+    shortName: 'War',
+    icon: 'alert-triangle',
+    color: '#FF4D4D',
+    description: 'Armed conflicts, wars, escalations worldwide',
+    googleNewsQuery: 'war OR conflict OR airstrike OR invasion OR ceasefire',
   },
   {
-    id: 'markets',
-    name: 'Markets',
-    shortName: 'Markets',
-    icon: 'trending-up',
-    color: colors.topicMarkets,
-    description: 'Stocks, crypto, commodities',
+    id: 'security',
+    name: 'Security',
+    shortName: 'Security',
+    icon: 'shield',
+    color: '#FF8C42',
+    description: 'Cybersecurity, terrorism, intelligence',
+    googleNewsQuery: 'cybersecurity OR terrorism OR intelligence OR threat OR cyberattack',
   },
   {
-    id: 'tech',
-    name: 'Tech',
-    shortName: 'Tech',
+    id: 'ai-tech',
+    name: 'AI & Tech',
+    shortName: 'AI',
     icon: 'cpu',
-    color: colors.topicTech,
-    description: 'AI news, product launches, outages',
+    color: '#A78BFA',
+    description: 'Artificial intelligence, tech breakthroughs',
+    googleNewsQuery: 'artificial intelligence OR AI OR machine learning OR tech breakthrough',
   },
   {
-    id: 'sports',
-    name: 'Sports',
-    shortName: 'Sports',
-    icon: 'activity',
-    color: colors.topicSports,
-    description: 'Live scores & trending games',
+    id: 'finance',
+    name: 'Finance & Economy',
+    shortName: 'Finance',
+    icon: 'trending-up',
+    color: '#4ADE80',
+    description: 'Markets, economy, central banks, crypto',
+    googleNewsQuery: 'stock market OR economy OR federal reserve OR inflation OR cryptocurrency',
   },
   {
-    id: 'entertainment',
-    name: 'Entertainment',
-    shortName: 'Ent',
-    icon: 'film',
-    color: colors.topicEntertainment,
-    description: 'Viral content, celebrity news, releases',
+    id: 'politics',
+    name: 'Politics',
+    shortName: 'Politics',
+    icon: 'flag',
+    color: '#60A5FA',
+    description: 'Elections, policy, diplomacy, governance',
+    googleNewsQuery: 'politics OR election OR diplomacy OR sanctions OR summit',
   },
   {
-    id: 'memes',
-    name: 'Memes & Culture',
-    shortName: 'Memes',
-    icon: 'smile',
-    color: colors.topicMemes,
-    description: 'Trending memes & viral moments',
+    id: 'military',
+    name: 'Military',
+    shortName: 'Military',
+    icon: 'crosshair',
+    color: '#6B7280',
+    description: 'Defense, weapons, military operations',
+    googleNewsQuery: 'military OR defense OR NATO OR weapons OR deployment',
   },
   {
-    id: 'weather',
-    name: 'Weather',
-    shortName: 'Weather',
+    id: 'climate',
+    name: 'Climate & Weather',
+    shortName: 'Climate',
     icon: 'cloud-lightning',
-    color: colors.topicWeather,
-    description: 'Severe alerts & natural disasters',
+    color: '#38BDF8',
+    description: 'Climate change, natural disasters, severe weather',
+    googleNewsQuery: 'climate change OR hurricane OR earthquake OR wildfire OR flood disaster',
   },
   {
     id: 'science',
-    name: 'Science',
+    name: 'Science & Space',
     shortName: 'Science',
     icon: 'zap',
-    color: colors.topicScience,
-    description: 'Space launches & discoveries',
+    color: '#E879F9',
+    description: 'Space missions, discoveries, research',
+    googleNewsQuery: 'NASA OR SpaceX OR space mission OR scientific discovery OR research breakthrough',
   },
 ];
 
